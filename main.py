@@ -1,7 +1,7 @@
 import asyncio
 from aiogram import Bot, Dispatcher
 from app import listen_to_logs, start_router, PrimaryUserCheckMiddleware, create_db
-from config.config import BOT_TOKEN, ADMIN_CHAT_ID, REDIS_URL
+from config.config import BOT_TOKEN, ADMIN_CHAT_ID, REDIS_HOST, REDIS_PORT
 
 
 bot = Bot(BOT_TOKEN)
@@ -16,7 +16,7 @@ async def on_start():
 
 
 async def main():
-    listen_task = asyncio.create_task(listen_to_logs(REDIS_URL, bot, ADMIN_CHAT_ID))
+    listen_task = asyncio.create_task(listen_to_logs(REDIS_HOST, REDIS_PORT, bot, ADMIN_CHAT_ID))
     bot_task = asyncio.create_task(on_start())
     await asyncio.gather(listen_task, bot_task)
 

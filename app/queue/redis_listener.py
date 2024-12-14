@@ -8,11 +8,11 @@ from aiogram.types import FSInputFile
 from pathlib import Path
 
 
-async def connect_to_redis(redis_url) -> aioredis.Redis:
+async def connect_to_redis(redis_url: str, redis_port: int) -> aioredis.Redis:
     """
     Устанавливает соединение с Redis.
     """
-    return aioredis.from_url(redis_url, encoding="utf-8", decode_responses=True)
+    return aioredis.from_url(redis_url, port=redis_port, encoding="utf-8", decode_responses=True)
 
 
 async def fetch_log_message(redis: aioredis.Redis, queue: str) -> Optional[dict]:
@@ -93,7 +93,7 @@ async def process_logs(bot: Bot, chat_id: int, redis: aioredis.Redis, queue: str
         await send_files(bot, chat_id, file_paths)
 
 
-async def listen_to_logs(redis_url: str, bot: Bot, chat_id: int) -> None:
+async def listen_to_logs(redis_url: str, redis_port: int, bot: Bot, chat_id: int) -> None:
     """
     Основной цикл обработки очередей Redis.
 
@@ -101,7 +101,7 @@ async def listen_to_logs(redis_url: str, bot: Bot, chat_id: int) -> None:
     :param chat_id: Идентификатор чата.
     """
     try:
-        redis = await connect_to_redis(redis_url)
+        redis = await connect_to_redis(redis_url, redis_port)
     except ConnectionError as e:
         await send_notification(bot, chat_id, f"❌ Ошибка подключения к Redis: {e}")
         return
