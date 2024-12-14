@@ -1,5 +1,5 @@
 from aiogram import BaseMiddleware
-from .tdb_query import add_user_to_db, is_user_in_db
+from ..database.tdb_query import add_user_to_db, is_user_in_db
 from aiogram import types
 
 ALLOWED_USER_IDS = [530731938, 221748119]

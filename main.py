@@ -1,10 +1,7 @@
 import asyncio
 from aiogram import Bot, Dispatcher
-from presentation.telegram_bot.redis_listener import listen_to_logs
-from presentation.telegram_bot.handlers import start_router
-from presentation.telegram_bot.middleware import PrimaryUserCheckMiddleware
-from presentation.telegram_bot.tdb_query import create_db
-from config.config import BOT_TOKEN, ADMIN_CHAT_ID
+from app import listen_to_logs, start_router, PrimaryUserCheckMiddleware, create_db
+from config.config import BOT_TOKEN, ADMIN_CHAT_ID, REDIS_URL
 
 
 bot = Bot(BOT_TOKEN)
@@ -19,7 +16,7 @@ async def on_start():
 
 
 async def main():
-    listen_task = asyncio.create_task(listen_to_logs(bot, ADMIN_CHAT_ID))
+    listen_task = asyncio.create_task(listen_to_logs(REDIS_URL, bot, ADMIN_CHAT_ID))
     bot_task = asyncio.create_task(on_start())
     await asyncio.gather(listen_task, bot_task)
 

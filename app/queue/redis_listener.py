@@ -2,17 +2,17 @@ import aioredis
 import asyncio
 import json
 from typing import Optional
-from presentation.telegram_bot.formatters import NotificationFormatter
-from config.config import REDIS_URL
+from app.queue.formatters import NotificationFormatter
 from aiogram import types, Bot
 from aiogram.types import FSInputFile
+from pathlib import Path
 
 
-async def connect_to_redis() -> aioredis.Redis:
+async def connect_to_redis(redis_url) -> aioredis.Redis:
     """
     Устанавливает соединение с Redis.
     """
-    return aioredis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+    return aioredis.from_url(redis_url, encoding="utf-8", decode_responses=True)
 
 
 async def fetch_log_message(redis: aioredis.Redis, queue: str) -> Optional[dict]:
@@ -69,33 +69,31 @@ async def send_files(bot: Bot, chat_id: int, file_paths: list[str]) -> None:
             await send_notification(bot, chat_id, f"❌ Ошибка при отправке группы файлов: {e}")
 
 
-async def process_logs(bot: Bot, chat_id: int, redis: aioredis.Redis, queues: list[str]) -> None:
+async def process_logs(bot: Bot, chat_id: int, redis: aioredis.Redis, queue: str) -> None:
     """
     Обрабатывает логи из очередей Redis и отправляет уведомления в Telegram.
 
     :param bot: Объект Telegram-бота.
     :param chat_id: Идентификатор чата.
     :param redis: Объект Redis.
-    :param queues: Список очередей.
+    :param queue: очередь.
     """
-    for queue in queues:
-        notification_data = await fetch_log_message(redis, queue)
-        if not notification_data:
-            continue
-
-        formatted_message = NotificationFormatter.format_message(notification_data)
-        await send_notification(bot, chat_id, formatted_message)
-
-        file_paths = [
-            notification_data.get("log_file_path"),
-            notification_data.get("excel_file_path"),
-        ]
-        file_paths = [path for path in file_paths if path]
-        if file_paths:
-            await send_files(bot, chat_id, file_paths)
+    robot_data_path = Path(__file__).parent.parent
+    notification_data = await fetch_log_message(redis, queue)
+    if not notification_data:
+        return
+    formatted_message = NotificationFormatter.format_message(notification_data)
+    await send_notification(bot, chat_id, formatted_message)
+    file_paths = [
+        robot_data_path / 'data/robot/logs/robot.log' if notification_data.get("log_file_path") else None,
+        robot_data_path / f'data/robot/excel_files/{notification_data.get("excel_file_path")}' if notification_data.get("excel_file_path") else None,
+    ]
+    file_paths = [path for path in file_paths if path]
+    if file_paths:
+        await send_files(bot, chat_id, file_paths)
 
 
-async def listen_to_logs(bot: Bot, chat_id: int) -> None:
+async def listen_to_logs(redis_url: str, bot: Bot, chat_id: int) -> None:
     """
     Основной цикл обработки очередей Redis.
 
@@ -103,16 +101,16 @@ async def listen_to_logs(bot: Bot, chat_id: int) -> None:
     :param chat_id: Идентификатор чата.
     """
     try:
-        redis = await connect_to_redis()
+        redis = await connect_to_redis(redis_url)
     except ConnectionError as e:
         await send_notification(bot, chat_id, f"❌ Ошибка подключения к Redis: {e}")
         return
 
-    queues = ["logs_queue"]
+    queue = "logs_queue"
 
     while True:
         try:
-            await process_logs(bot, chat_id, redis, queues)
+            await process_logs(bot, chat_id, redis, queue)
             await asyncio.sleep(1)
         except Exception as e:
             await send_notification(bot, chat_id, f"❌ Ошибка в цикле обработки очередей: {e}")
