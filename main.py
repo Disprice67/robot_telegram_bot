@@ -1,7 +1,8 @@
 import asyncio
 from aiogram import Bot, Dispatcher
-from app import listen_to_logs, start_router, PrimaryUserCheckMiddleware, create_db
+from app import start_router, PrimaryUserCheckMiddleware, create_db
 from config.config import BOT_TOKEN, ADMIN_CHAT_ID, REDIS_HOST, REDIS_PORT
+from app.handlers.commands import set_bot_commands
 
 
 bot = Bot(BOT_TOKEN)
@@ -11,14 +12,22 @@ create_db()
 dp.message.middleware(PrimaryUserCheckMiddleware())
 
 
+async def on_startup(bot: Bot):
+    await set_bot_commands(bot)
+
+
 async def on_start():
     await dp.start_polling(bot, skip_updates=True)
 
 
+# Основная функция для запуска бота
 async def main():
-    listen_task = asyncio.create_task(listen_to_logs(REDIS_HOST, REDIS_PORT, bot, ADMIN_CHAT_ID))
-    bot_task = asyncio.create_task(on_start())
-    await asyncio.gather(listen_task, bot_task)
+    # Устанавливаем команды бота
+    await on_startup(bot)
 
+    # Запускаем polling
+    await dp.start_polling(bot, skip_updates=True)
+
+# Запуск приложения
 if __name__ == "__main__":
     asyncio.run(main())
